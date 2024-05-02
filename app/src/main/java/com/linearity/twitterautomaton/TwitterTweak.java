@@ -1,12 +1,9 @@
 package com.linearity.twitterautomaton;
 
 import static com.linearity.twitterautomaton.utils.LoggerLog;
-import static com.linearity.twitterautomaton.utils.showArgs;
 import static com.linearity.twitterautomaton.utils.showObjectFields;
-import static com.linearity.twitterautomaton.utils.showObjectFields_noExpand;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -20,8 +17,8 @@ import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 public class TwitterTweak implements IXposedHookLoadPackage {
-    public static final boolean showTextFlag = true;
-    public static final boolean showTagFlag = true;
+    public static final boolean showTextFlag = false;
+    public static final boolean showTagFlag = false;
     public static final boolean markDontLikeFlag = true;
     public static HashSet<String> newTags = new HashSet<>();
     public static Method[] keyMethods = new Method[2];
@@ -30,8 +27,10 @@ public class TwitterTweak implements IXposedHookLoadPackage {
     public static final String[] mustContainOne = new String[]{
             "miku","hatsune","初音","ミク"
     };
-    //when tweetText.size >= mustContainLength
-    // and tweetText doesn't contain one word in mustContainOne,markDontLike
+    /**
+     * when tweetText.size >= mustContainLength
+     * and tweetText doesn't contain one word in mustContainOne,markDontLike
+     * */
     public static final int mustContainLength = 200;
     public static final String[] blackListWords = new String[]{
             "虹夏", "ぼっち","apex","小春と湊","ドン・キホーテ","meiko","gumi","月雪ミヤコ",
@@ -99,93 +98,23 @@ public class TwitterTweak implements IXposedHookLoadPackage {
                 "世界まぐろデー","AIさくらさん","みくらこ","伊自良湖","尾櫃制服計画","三代静","rainmelセーラー",
                 "神鉄","ラク子の紹介","神戸市","兵庫県","摂津国","通勤ラク子","幻想夢乙女","cospaly",
                 "らいコス写真","コスプレ","平湯温泉","高山匠美","奥飛騨温泉郷","飛騨高山",
-                "温泉閣","カナエちゃん","カナ絵アート","鹿屋園芸部","nijijourney",
+                "温泉閣","カナエちゃん","カナ絵アート","鹿屋園芸部","nijijourney","東方project","霧雨魔理沙",
+                "鬼滅の刃","竈門禰󠄀豆子",
         };
         blackListTags = new HashSet<>(Arrays.asList(blackListTagsArray));
     }
     @Override
-    public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
+    public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) {
         if (lpparam.processName.contains("com.twitter.android")
             || lpparam.packageName.contains("com.twitter.android")
         ){
             LoggerLog("Hooked Twitter");
             try {
                 Class<?> FindingClass;
-//                FindingClass = XposedHelpers.findClassIfExists("nat",lpparam.classLoader);
-//                if (FindingClass != null){
-//                    XposedBridge.hookAllMethods(FindingClass,"h", new XC_MethodHook() {
-//                        @Override
-//                        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-//                            super.beforeHookedMethod(param);
-//                            Object thisD = XposedHelpers.findField(param.thisObject.getClass(),"d").get(param.thisObject);
-//                            Object thisQ = XposedHelpers.findField(param.thisObject.getClass(),"q").get(param.thisObject);
-//                            Object dResult = XposedHelpers.findMethodExact(thisD.getClass(),"h",int.class).invoke(thisD,param.args[0]);
-//                            Object qResult = XposedHelpers.findMethodBestMatch(thisQ.getClass(),"a",dResult.getClass()).invoke(thisQ,dResult);
-//                            Object obj = qResult;
-////                            showObjectFields(obj,"    ");
-//                            Field f = XposedHelpers.findFieldIfExists(obj.getClass(),"k");
-//                            if (f == null){
-//                                return;
-//                            }
-//                            obj = f.get(obj);
-//                            if (obj == null){return;}
-//                            f = XposedHelpers.findFieldIfExists(obj.getClass(),"d");
-//                            obj = f.get(obj);
-//                            if (obj!=null && obj.getClass().getTypeName().equals("cql")) {
-//                                showObjectFields(qResult,"    ");
-////                                LoggerLog(new Exception("not an exception"));
-////                                param.setResult(null);
-////                                LoggerLog("ad cancelled");
-////                                return;
-//                            }
-//                            param.setResult(qResult);
-//                        }
-//                    });
-//                }
 
-                Class Dontlike_yva$c_class = XposedHelpers.findClassIfExists("yva$c",lpparam.classLoader);
-                Class Dontlike_yva$c$a_class = XposedHelpers.findClassIfExists("yva$c$a",lpparam.classLoader);
-                Class Dontlike_e_class = XposedHelpers.findClassIfExists("cqu",lpparam.classLoader);
-                Object Dontlike_e = null;
-                if (Dontlike_e_class != null){
-                    Object[] icons = Dontlike_e_class.getEnumConstants();
-                    if (icons != null){
-                        for (Object o:icons){
-                            if (o.toString().equals("FROWN")){
-                                Dontlike_e = o;
-                                break;
-                            }
-                        }
-                    }
-                    if (Dontlike_e==null && icons != null && icons.length > 0){
-                        Dontlike_e = icons[0];
-                    }
-                }
-
-                if (Dontlike_yva$c$a_class != null){
-                    Class Dontlike_yva$c$b_class = XposedHelpers.findClassIfExists("yva$c$b",lpparam.classLoader);
-//                    Class o4j_class = XposedHelpers.findClassIfExists("o4j",lpparam.classLoader);
-//
-//                    XposedBridge.hookAllMethods(o4j_class, "a", new XC_MethodHook() {
-//                        @Override
-//                        protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-//                            super.afterHookedMethod(param);
-//                            Class e93_class = XposedHelpers.findClass("e93",lpparam.classLoader);
-//                            Method e93_A = XposedHelpers.findMethodExact("e93",lpparam.classLoader,"A");
-//                            if (e93_class.isInstance(param.args[0])) {
-////                                LoggerLog(e93_A.invoke(param.args[0]));
-//                                LoggerLog(param.getResult());
-//                            }
-//                        }
-//                    });
-                    
-
-                }
-                Class CurationViewDelegateBinder_Class = XposedHelpers.findClassIfExists("com.twitter.tweetview.core.ui.curation.CurationViewDelegateBinder",lpparam.classLoader);
-
+                Class<?> CurationViewDelegateBinder_Class = XposedHelpers.findClassIfExists("com.twitter.tweetview.core.ui.curation.CurationViewDelegateBinder",lpparam.classLoader);
                 FindingClass = XposedHelpers.findClassIfExists("pae$a",lpparam.classLoader);//ad blocker
                 if (FindingClass != null){
-                    Object finalDontlike_e = Dontlike_e;
                     XposedBridge.hookAllMethods(FindingClass, "a", new XC_MethodHook() {
                         @Override
                         protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
@@ -196,7 +125,6 @@ public class TwitterTweak implements IXposedHookLoadPackage {
                                 return;
                             }
                             obj = f.get(obj);if (obj == null){return;}
-                            Object vx6obj = obj;
                             f = XposedHelpers.findFieldIfExists(obj.getClass(),"d");if (f == null){return;}
                             Object obj1 = f.get(obj);
                             if (obj1!=null && obj1.getClass().getTypeName().equals("cql")) {
@@ -205,12 +133,37 @@ public class TwitterTweak implements IXposedHookLoadPackage {
                                 return;
                             }
                             {
+                                String userName = "";
+                                String userID = "";
                                 {
                                     Object vjsobj = param.args[2];
                                     String tweetText = "";
                                     ArrayList<String> tagList = new ArrayList<>();
                                     f = XposedHelpers.findFieldIfExists(obj.getClass(),"c");if (f==null){return;}
                                     obj = f.get(obj);if (obj == null){return;}
+
+                                    Object userNameObj = obj;
+                                    Field f_user = XposedHelpers.findFieldIfExists(userNameObj.getClass(),"r3");
+                                    if (f_user != null){
+                                        userNameObj = f_user.get(userNameObj);
+                                        if (userNameObj != null){
+                                            f_user = XposedHelpers.findFieldIfExists(userNameObj.getClass(),"q");
+                                            if (f_user != null){
+                                                userNameObj = f_user.get(userNameObj);
+                                                if (userNameObj != null && userNameObj instanceof String){
+                                                    userName = (String) userNameObj;
+                                                }
+                                            }
+                                            f_user = XposedHelpers.findFieldIfExists(userNameObj.getClass(),"d");
+                                            if (f_user != null){
+                                                userNameObj = f_user.get(userNameObj);
+                                                if (userNameObj != null && userNameObj instanceof String){
+                                                    userID = (String) userNameObj;
+                                                }
+                                            }
+                                        }
+                                    }
+
                                     Field f1 = XposedHelpers.findFieldIfExists(obj.getClass(),"X2");
                                     if (f1 != null){
                                         obj1 = f1.get(obj);
@@ -228,7 +181,7 @@ public class TwitterTweak implements IXposedHookLoadPackage {
                                     obj = f.get(obj);if (obj == null){return;}
                                     f = XposedHelpers.findFieldIfExists(obj.getClass(),"c");if (f==null){return;}
                                     obj = f.get(obj);if (!(obj instanceof List)){return;}
-                                    List tagEntities = (List) obj;
+                                    List<?> tagEntities = (List<?>) obj;
                                     for (Object o:tagEntities){
                                         Field field = XposedHelpers.findFieldIfExists(o.getClass(),"y");
                                         if (field != null && field.getType().isInstance("")){
@@ -239,9 +192,9 @@ public class TwitterTweak implements IXposedHookLoadPackage {
                                         }
                                     }
                                     if (objPool[0] != null){
-                                        if (checkDontLike(blackListTags, tagList, blackListWords, blackListNames, blackListID, "", "", tweetText,mustContainOne,mustContainLength)) {
+                                        if (checkDontLike(blackListTags, tagList, blackListWords, blackListNames, blackListID, userName, userID, tweetText,mustContainOne,mustContainLength)) {
                                             Object yva$c_obj = XposedHelpers.callStaticMethod(CurationViewDelegateBinder_Class,"d",param.args[2]);
-                                            bpt_j(vx6obj, yva$c_obj, vjsobj,objPool[0],lpparam.classLoader);
+                                            markDontLikeMethods.bpt_j(yva$c_obj, vjsobj, lpparam.classLoader);
                                             return;
                                         }
                                     }
@@ -274,141 +227,16 @@ public class TwitterTweak implements IXposedHookLoadPackage {
                         }
                     });
                 }
-//
-//                FindingClass = XposedHelpers.findClassIfExists("vm",lpparam.classLoader);
-//                if (FindingClass != null){
-//                    XposedBridge.hookAllConstructors(FindingClass, new XC_MethodHook() {
-//                        @Override
-//                        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-//                            super.beforeHookedMethod(param);
-//                            for (Object o:(List)param.args[0]){
-//                                showObjectFields(o,"        ");
-//                            }
-//                            showObjectFields(param.args[1],"        ");
-//                        }
-//                    });
-//                }
-
-//                FindingClass = XposedHelpers.findClassIfExists("bn",lpparam.classLoader);
-//                if (FindingClass != null){
-//                    XposedBridge.hookAllConstructors(FindingClass, new XC_MethodHook() {
-//                        @Override
-//                        protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-//                            super.afterHookedMethod(param);
-//                            LoggerLog(new Exception("not an exception"));
-//                            showArgs(param.args);
-//                        }
-//                    });
-//                }
-
-//                FindingClass = XposedHelpers.findClassIfExists("xm",lpparam.classLoader);
-//                if (FindingClass != null){
-////                    XposedBridge.hookAllConstructors(FindingClass, new XC_MethodHook() {
-////                        @Override
-////                        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-////                            super.beforeHookedMethod(param);
-//////                            showObjectFields(param.args[1],"    ");
-////                            LoggerLog(param.args[1]);
-////                            LoggerLog(param.args[1].getClass().getTypeName());
-////                            XposedHelpers.findMethodExact(param.args[1].getClass(),"h2").invoke(param.args[1]);
-////                        }
-////                    });
-//                    XposedBridge.hookAllMethods(FindingClass,"onClick", new XC_MethodHook() {
-//                        @Override
-//                        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-//                            super.beforeHookedMethod(param);
-////                            LoggerLog(new Exception("not an exception"));
-////                            Field f = XposedHelpers.findField(param.thisObject.getClass(),"k3");
-////                            showObjectFields(f.get(param.thisObject),"    ");
-//                            Field f_k3 = XposedHelpers.findField(param.thisObject.getClass(),"k3");
-//                            Class cls_sm = XposedHelpers.findClass("sm",lpparam.classLoader);
-//                            Object o = f_k3.get(param.thisObject);
-//                            cls_sm.cast(o);
-////                            XposedHelpers.findMethodExact(o.getClass().getSuperclass().getSuperclass().getSuperclass(),"q2",int.class).invoke(o,0);
-////                            XposedHelpers.findMethodExact(o.getClass().getSuperclass().getSuperclass().getSuperclass().getSuperclass().getSuperclass(),"h2").invoke(o);
-////                            param.setResult(null);
-//
-//                            Object o1 = XposedHelpers.findMethodExact(o.getClass().getSuperclass().getSuperclass().getSuperclass(),"p2").invoke(o);
-//                            LoggerLog(((Bundle)XposedHelpers.findField(o1.getClass(),"a").get(o1)));
-//                        }
-//                    });
-//                }
-
-//                FindingClass = XposedHelpers.findClassIfExists("bi7",lpparam.classLoader);
-//                if (FindingClass != null){
-//                    XC_MethodHook after = new XC_MethodHook() {
-//                    @Override
-//                    protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-//                        super.afterHookedMethod(param);
-//                        Object obj_tweetViewViewModel = XposedHelpers.findField(param.thisObject.getClass(),"c").get(param.thisObject);
-//                        Object obj_tweetViewViewModel_x = XposedHelpers.findField(obj_tweetViewViewModel.getClass(),"x").get(obj_tweetViewViewModel);
-//                        Object obj_tweetViewViewModel_c = XposedHelpers.findField(obj_tweetViewViewModel_x.getClass(),"c").get(obj_tweetViewViewModel_x);
-//                        Object obj_tweetViewViewModel_a = XposedHelpers.findMethodExact(obj_tweetViewViewModel_c.getClass(),"get").invoke(obj_tweetViewViewModel_c);
-//                        if (obj_tweetViewViewModel_a == null){LoggerLog("obj_tweetViewViewModel_a:null");return;}
-//                        Object obj_m1uVar = XposedHelpers.findField(obj_tweetViewViewModel_a.getClass(),"f").get(obj_tweetViewViewModel_a);
-//                        Object obj_vx6Var = XposedHelpers.findField(obj_tweetViewViewModel_a.getClass(),"a").get(obj_tweetViewViewModel_a);
-//                        showObjectFields(obj_m1uVar,"    ");
-//                    }
-//                };
-//                    XposedBridge.hookAllMethods(FindingClass,"invoke", after );
-//                    XposedBridge.hookAllConstructors(FindingClass, after);
-////                    XposedBridge.hookAllMethods(FindingClass, "n", new XC_MethodHook() {
-////                        @Override
-////                        protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-////                            super.afterHookedMethod(param);
-////                            LoggerLog(new Exception("not an exception"));
-//////                            LoggerLog(param.getResult().getClass().getTypeName());
-////                        }
-////                    });
-//                }
-
-
-//                FindingClass = XposedHelpers.findClassIfExists("yva$c",lpparam.classLoader);
-//                if (FindingClass != null){
-//                    XposedBridge.hookAllConstructors(FindingClass, new XC_MethodHook() {
-//                        @Override
-//                        protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-//                            super.afterHookedMethod(param);
-//                            showObjectFields_noExpand(param.thisObject,"    ");
-////                            LoggerLog(new Exception("not an exception"));
-////                            LoggerLog(param.getResult().getClass().getTypeName());
-//                        }
-//                    });
-//                }
-//                FindingClass = XposedHelpers.findClassIfExists("yva$c$b",lpparam.classLoader);
-//                if (FindingClass != null){
-//                    XposedBridge.hookAllMethods(FindingClass, "i", new XC_MethodHook() {
-//                        @Override
-//                        protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-//                            super.afterHookedMethod(param);
-//                            showObjectFields(param.args[0],"    ");
-//                        }
-//                    });
-//                }
-
-//                        FindingClass = XposedHelpers.findClassIfExists("e93",lpparam.classLoader);
-//                if (FindingClass != null){
-//                    XposedBridge.hookAllMethods(FindingClass, "A", new XC_MethodHook() {
-//                        @Override
-//                        protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-//                            super.afterHookedMethod(param);
-//                            if (param.getResult().equals(35501L)){
-//                                LoggerLog(new Exception("not an exception"));
-//                            }
-//                        }
-//                    });
-//                }
-
-//                Class Dontlike_g_Class = XposedHelpers.findClassIfExists("yva$c$b",lpparam.classLoader);//f:null
-
                  FindingClass = XposedHelpers.findClassIfExists("fot",lpparam.classLoader);
                  if (FindingClass != null){
-                     Object finalDontlike_e = Dontlike_e;
                      XposedBridge.hookAllConstructors(FindingClass, new XC_MethodHook() {
                          @Override
                          protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                              super.afterHookedMethod(param);
                              if (param.args.length == 20){
+
+                                 String userName = "";
+                                 String userID = "";
 //                                 LoggerLog(new Exception("not an exception"));
                                  Field f;
                                  Object obj1;
@@ -421,6 +249,28 @@ public class TwitterTweak implements IXposedHookLoadPackage {
                                 ArrayList<String> tagList = new ArrayList<>();
                                 f = XposedHelpers.findFieldIfExists(obj.getClass(),"c");
                                 obj = f.get(obj);if (obj == null){return;}
+                                 Object userNameObj = obj;
+                                 Field f_user = XposedHelpers.findFieldIfExists(userNameObj.getClass(),"r3");
+                                 if (f_user != null){
+                                     userNameObj = f_user.get(userNameObj);
+                                     if (userNameObj != null){
+                                         f_user = XposedHelpers.findFieldIfExists(userNameObj.getClass(),"q");
+                                         if (f_user != null){
+                                             userNameObj = f_user.get(userNameObj);
+                                             if (userNameObj != null && userNameObj instanceof String){
+                                                 userName = (String) userNameObj;
+                                             }
+                                         }
+                                         f_user = XposedHelpers.findFieldIfExists(userNameObj.getClass(),"d");
+                                         if (f_user != null){
+                                             userNameObj = f_user.get(userNameObj);
+                                             if (userNameObj != null && userNameObj instanceof String){
+                                                 userID = (String) userNameObj;
+                                             }
+                                         }
+                                     }
+                                 }
+
                                 Field f1 = XposedHelpers.findFieldIfExists(obj.getClass(),"X2");
                                 obj1 = f1.get(obj);
                                 if (obj1 != null){
@@ -435,7 +285,7 @@ public class TwitterTweak implements IXposedHookLoadPackage {
                                 obj = f.get(obj);if (obj == null){return;}
                                 f = XposedHelpers.findFieldIfExists(obj.getClass(),"c");
                                 obj = f.get(obj);if (!(obj instanceof List)){return;}
-                                List tagEntities = (List) obj;
+                                List<?> tagEntities = (List<?>) obj;
                                 for (Object o:tagEntities){
                                     Field field = XposedHelpers.findFieldIfExists(o.getClass(),"y");
                                     if (field != null && field.getType().isInstance("")){
@@ -445,7 +295,7 @@ public class TwitterTweak implements IXposedHookLoadPackage {
                                         }
                                     }
                                 }
-                                if (checkDontLike(blackListTags,tagList,blackListWords,blackListNames,blackListID,"","",tweetText,mustContainOne,mustContainLength)){
+                                if (checkDontLike(blackListTags,tagList,blackListWords,blackListNames,blackListID,userName,userID,tweetText,mustContainOne,mustContainLength)){
                                     if (objPool[0] == null){
                                         Object lObj = XposedHelpers.findField(txtObj.getClass(),"l").get(txtObj);
                                         objPool[0] = lObj;
@@ -468,36 +318,12 @@ public class TwitterTweak implements IXposedHookLoadPackage {
                          }
                      });
                  }
-//                FindingClass = XposedHelpers.findClassIfExists("x5w$a",lpparam.classLoader);
-//                if (FindingClass != null){
-//                    XposedBridge.hookAllConstructors(FindingClass, new XC_MethodHook() {
-//                        @Override
-//                        protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-//                            super.afterHookedMethod(param);
-//                            Object q = XposedHelpers.findField(param.thisObject.getClass(),"q").get(param.thisObject);
-//                            Class yzu = XposedHelpers.findClass("yzu", lpparam.classLoader);
-//                            Method m = XposedHelpers.findMethodBestMatch(q.getClass(),"onNext",yzu);
-//                        }
-//                    });
-//                }
 
 
             }catch (Exception e){
                 LoggerLog(e);
             }
         }
-    }
-
-
-    public static Object markAsDontLike_requestObject(long id, Object DontLike_e, Class Dontlike_yva$c_class, Class Dontlike_yva$c$a_class) throws Exception{
-        Object yva$c$a_obj = XposedHelpers.findConstructorExact(Dontlike_yva$c$a_class).newInstance();
-        XposedHelpers.findField(Dontlike_yva$c$a_class,"c").set(yva$c$a_obj,"DontLike");
-        XposedHelpers.findField(Dontlike_yva$c$a_class,"d").set(yva$c$a_obj,"对此帖子不感兴趣");
-        XposedHelpers.findField(Dontlike_yva$c$a_class,"q").setLong(yva$c$a_obj,id);
-        XposedHelpers.findField(Dontlike_yva$c$a_class,"y").set(yva$c$a_obj,DontLike_e);
-        XposedHelpers.findField(Dontlike_yva$c$a_class,"x").setInt(yva$c$a_obj,0);
-        Object yva$c_obj = XposedHelpers.findConstructorExact(Dontlike_yva$c_class,Dontlike_yva$c$a_class).newInstance(yva$c$a_obj);
-        return yva$c_obj;
     }
 
     public static boolean checkDontLike(
@@ -554,70 +380,5 @@ public class TwitterTweak implements IXposedHookLoadPackage {
         return false;
     }
 
-    public final boolean bpt_j(Object vx6Var, Object cVar, Object vjsVar, Object bpt_l, ClassLoader classLoader) throws InvocationTargetException, IllegalAccessException, InstantiationException {
-        boolean z = false;
-        int i = 1;
-        Object hInside = XposedHelpers.findMethodExact(vjsVar.getClass().getSuperclass(),"c").invoke(vjsVar);
-        int h = XposedHelpers.findField(hInside.getClass(),"h").getInt(hInside);
-        if (vjsVar != null) {
-            if (e58_t(h)){
-                z = true;
-            }
-        }
-
-//        String str = cVar.a;
-////        Pattern pattern = g9r.a;
-//        if (t9r.equalsWithCase("Moderate", str, true) && (vjsVar instanceof m1u)) {
-//            s(this.h.get(), vx6Var);
-//            return true;
-//        }
-        Class h19Cls = XposedHelpers.findClass("h19$a",classLoader);
-        Object aVar = XposedHelpers.findConstructorExact(h19Cls).newInstance();
-        XposedHelpers.setIntField(aVar,"c",4);
-        XposedHelpers.setIntField(aVar,"c",4);
-        XposedHelpers.setLongField(aVar,"d",XposedHelpers.getLongField(cVar,"c"));
-        Object o = XposedHelpers.findMethodExact(aVar.getClass().getSuperclass(),"o").invoke(aVar);
-        if (z) {
-            i = 2;
-        }
-        return bpt_r(vjsVar, o, i, objPool[0]);
-    }
-
-    public static boolean e58_t(int i) {
-        boolean z;
-        boolean z2;
-        boolean z3;
-        if ((i & 6) != 0) {
-            z = true;
-        } else {
-            z = false;
-        }
-        if (z) {
-            if ((i & 16) != 0) {
-                z2 = true;
-            } else {
-                z2 = false;
-            }
-            if (z2) {
-                if ((i & 32) != 0) {
-                    z3 = true;
-                } else {
-                    z3 = false;
-                }
-                if (z3) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    public final boolean bpt_r(Object vjsVar, Object h19Var, int i, Object whsVar) throws InvocationTargetException, IllegalAccessException {
-        if (whsVar != null && vjsVar != null) {
-            XposedHelpers.findMethodBestMatch(whsVar.getClass(),"a",vjsVar.getClass().getSuperclass(),h19Var.getClass(),int.class).invoke(whsVar,vjsVar, h19Var, i);
-            return true;
-        }
-        return false;
-    }
 }
 

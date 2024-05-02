@@ -12,6 +12,7 @@ import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Objects;
 
 import de.robv.android.xposed.XposedBridge;
@@ -68,36 +69,7 @@ public class utils {
         for (Object o: args){
             LoggerLog("object:");
             LoggerLog(o);
-            if (o==null){continue;}
-            LoggerLog("fields:");
-            String objTypeName = o.getClass().getTypeName();
-            String objTypeNameLower = objTypeName.toLowerCase();
-            if (objTypeNameLower.contains("java")
-                    || objTypeNameLower.contains("integer")
-                    || objTypeNameLower.contains("long")
-                    || objTypeNameLower.contains("byte")
-                    || objTypeNameLower.contains("boolean")
-                    || objTypeNameLower.equals("int")){continue;}
-            for (Field f:o.getClass().getDeclaredFields()){
-                String typeName = f.getType().getTypeName();
-                String typeNameLower = typeName.toLowerCase();
-                try {
-                    LoggerLog("     fieldName:" + f.getName() + "     " + f.get(o) + "      " + typeName);
-                    if (!typeNameLower.contains("java")
-                            && !typeNameLower.contains("integer")
-                            && !typeNameLower.contains("long")
-                            && !typeNameLower.contains("byte")
-                            && !typeNameLower.contains("boolean")
-                            && !typeName.equals("int")
-                            && !typeNameLower.startsWith("android")
-                    ){
-                        showObjectFields(f.get(o),"          ",filter);
-                    }
-                }catch (Exception e){
-                    LoggerLog("     cannotAccess(" + typeName + ")");
-                }
-            }
-            LoggerLog(" ----fields end-----");
+            showObjectFields(o,"    ",filter);
         }
         LoggerLog("---------");
     }
@@ -138,87 +110,31 @@ public class utils {
 
     public static void showObjectFields(Object obj, String prefix, HashSet<Object> filter) {
         if (obj==null){return;}
-
-        LoggerLog(prefix + " fields:");
-        for (Field f:obj.getClass().getDeclaredFields()){
-            try {
-                String typeName = f.getType().getTypeName();
-                String typeNameLower = typeName.toLowerCase();
-                Object fobj = f.get(obj);
-                if (!typeNameLower.contains("java")
-                        && !typeNameLower.contains("integer")
-                        && !typeNameLower.contains("long")
-                        && !typeNameLower.contains("byte")
-                        && !typeNameLower.contains("boolean")
-                        && !typeNameLower.equals("int")
-                        && !typeNameLower.startsWith("android")
-                ){
-                    LoggerLog(prefix + "     fieldName:" + f.getName() + "     " + fobj + "      " + typeName);
-                    if (filter.contains(fobj)){
-//                        LoggerLog("--contained:"+fobj);
-                        continue;
-                    }
-                    filter.add(fobj);
-                    showObjectFields(fobj,prefix + "     ",filter);
-                    if (fobj.getClass().isArray()){
-                        int len = Array.getLength(fobj);
-                        LoggerLog(prefix + "array length:" + len);
-                        for (int i=0;i<len;i++){
-                            Object o = Array.get(fobj,i);
-                            if (o==null){continue;}
-                            if (filter.contains(o)){continue;}
-                            filter.add(o);
-                            showObjectFields(o,prefix + "     ",filter);
-                        }
-                    }
-                }
-                else {
-                    if (f.getType().equals(long.class)){
-                        LoggerLog(prefix + "     fieldName:" + f.getName() + "     " + f.getLong(obj) + "      " + typeName);
-                    }else if (f.getType().equals(int.class)){
-                        LoggerLog(prefix + "     fieldName:" + f.getName() + "     " + f.getInt(obj) + "      " + typeName);
-                    }else if (f.getType().equals(byte.class)){
-                        LoggerLog(prefix + "     fieldName:" + f.getName() + "     " + f.getByte(obj) + "      " + typeName);
-                    }else if (f.getType().equals(boolean.class)){
-                        LoggerLog(prefix + "     fieldName:" + f.getName() + "     " + f.getBoolean(obj) + "      " + typeName);
-                    }else if (f.getType().equals(short.class)){
-                        LoggerLog(prefix + "     fieldName:" + f.getName() + "     " + f.getShort(obj) + "      " + typeName);
-                    }else if (f.getType().equals(double.class)){
-                        LoggerLog(prefix + "     fieldName:" + f.getName() + "     " + f.getDouble(obj) + "      " + typeName);
-                    }else if (f.getType().equals(float.class)){
-                        LoggerLog(prefix + "     fieldName:" + f.getName() + "     " + f.getFloat(obj) + "      " + typeName);
-                    }else if (f.getType().equals(char.class)){
-                        LoggerLog(prefix + "     fieldName:" + f.getName() + "     " + f.getChar(obj) + "      " + typeName);
-                    }
-                }
-                if (fobj instanceof Collection){
-                    LoggerLog(prefix + "collection size:" + ((Collection)fobj).size());
-                    for (Object o:(Collection)fobj){
-                        if (o==null){continue;}
-                        if (filter.contains(o)){continue;}
-                        filter.add(o);
-                        showObjectFields(o,prefix + "     ",filter);
-                    }
-                }
-            }catch (Exception e){
-                LoggerLog(prefix + "     cannotAccess(" + f.getType().toString() + ")");
-            }
-        }
-        Class superClass = obj.getClass().getSuperclass();
-        while (!Objects.equals(superClass, Object.class) && superClass != null){
-            LoggerLog("superClass:" + superClass.getTypeName());
-            for (Field f:superClass.getDeclaredFields()){
+        String typeName = obj.getClass().getTypeName();
+        String typeNameLower = typeName.toLowerCase();
+        if (!typeNameLower.startsWith("java")
+                && !typeNameLower.contains("integer")
+                && !typeNameLower.contains("long")
+                && !typeNameLower.contains("byte")
+                && !typeNameLower.contains("boolean")
+                && !typeNameLower.equals("int")
+                && !typeNameLower.startsWith("android")
+                && !obj.getClass().isEnum()
+        ){
+            LoggerLog(prefix + " fields:");
+            for (Field f:obj.getClass().getDeclaredFields()){
                 try {
-                    String typeName = f.getType().getTypeName();
-                    String typeNameLower = typeName.toLowerCase();
+                    typeName = f.getType().getTypeName();
+                    typeNameLower = typeName.toLowerCase();
                     Object fobj = f.get(obj);
-                    if (!typeNameLower.contains("java")
+                    if (!typeNameLower.startsWith("java")
                             && !typeNameLower.contains("integer")
                             && !typeNameLower.contains("long")
                             && !typeNameLower.contains("byte")
                             && !typeNameLower.contains("boolean")
                             && !typeNameLower.equals("int")
                             && !typeNameLower.startsWith("android")
+                            && !f.getType().isEnum()
                     ){
                         LoggerLog(prefix + "     fieldName:" + f.getName() + "     " + fobj + "      " + typeName);
                         if (filter.contains(fobj)){
@@ -256,9 +172,27 @@ public class utils {
                             LoggerLog(prefix + "     fieldName:" + f.getName() + "     " + f.getFloat(obj) + "      " + typeName);
                         }else if (f.getType().equals(char.class)){
                             LoggerLog(prefix + "     fieldName:" + f.getName() + "     " + f.getChar(obj) + "      " + typeName);
+                        }else {
+                            LoggerLog(prefix + "     fieldName:" + f.getName() + "     " + f.get(obj) + "      " + typeName);
                         }
                     }
-                    if (fobj instanceof Collection){
+                    if (fobj instanceof Map){
+                        LoggerLog(prefix + "map size:" + ((Map)fobj).size());
+                        for (Map.Entry<?,?> entry:((Map<?,?>)fobj).entrySet()){
+                            LoggerLog(prefix + "key: " + entry.getKey() + "      value:" + entry.getValue());
+                            if (!filter.contains(entry.getKey())){
+                                filter.add(entry.getKey());
+                                LoggerLog(prefix + "keyField:");
+                                showObjectFields(entry.getKey(),prefix + "     ",filter);
+                            }
+                            if (!filter.contains(entry.getValue())){
+                                filter.add(entry.getValue());
+                                LoggerLog(prefix + "valueField:");
+                                showObjectFields(entry.getValue(),prefix + "     ",filter);
+                            }
+                        }
+                    }
+                    else if (fobj instanceof Collection){
                         LoggerLog(prefix + "collection size:" + ((Collection)fobj).size());
                         for (Object o:(Collection)fobj){
                             if (o==null){continue;}
@@ -271,8 +205,113 @@ public class utils {
                     LoggerLog(prefix + "     cannotAccess(" + f.getType().toString() + ")");
                 }
             }
-            superClass = superClass.getSuperclass();
+            Class<?> superClass = obj.getClass().getSuperclass();
+            while (!Objects.equals(superClass, Object.class)
+                    && superClass != null
+                    && !superClass.getTypeName().startsWith("java")
+                    && !superClass.isEnum()
+            ){
+                LoggerLog(prefix + "superClass:" + superClass.getTypeName());
+                for (Field f:superClass.getDeclaredFields()){
+                    try {
+                        typeName = f.getType().getTypeName();
+                        typeNameLower = typeName.toLowerCase();
+                        Object fobj = f.get(obj);
+                        if (!typeNameLower.startsWith("java")
+                                && !typeNameLower.contains("integer")
+                                && !typeNameLower.contains("long")
+                                && !typeNameLower.contains("byte")
+                                && !typeNameLower.contains("boolean")
+                                && !typeNameLower.equals("int")
+                                && !typeNameLower.startsWith("android")
+                                && !f.getType().isEnum()
+                        ){
+                            LoggerLog(prefix + "     fieldName:" + f.getName() + "     " + fobj + "      " + typeName);
+                            if (filter.contains(fobj)){
+//                        LoggerLog("--contained:"+fobj);
+                                continue;
+                            }
+                            filter.add(fobj);
+                            showObjectFields(fobj,prefix + "     ",filter);
+                            if (fobj.getClass().isArray()){
+                                int len = Array.getLength(fobj);
+                                LoggerLog(prefix + "array length:" + len);
+                                for (int i=0;i<len;i++){
+                                    Object o = Array.get(fobj,i);
+                                    if (o==null){continue;}
+                                    if (filter.contains(o)){continue;}
+                                    filter.add(o);
+                                    showObjectFields(o,prefix + "     ",filter);
+                                }
+                            }
+                        }
+                        else {
+                            if (f.getType().equals(long.class)){
+                                LoggerLog(prefix + "     fieldName:" + f.getName() + "     " + f.getLong(obj) + "      " + typeName);
+                            }else if (f.getType().equals(int.class)){
+                                LoggerLog(prefix + "     fieldName:" + f.getName() + "     " + f.getInt(obj) + "      " + typeName);
+                            }else if (f.getType().equals(byte.class)){
+                                LoggerLog(prefix + "     fieldName:" + f.getName() + "     " + f.getByte(obj) + "      " + typeName);
+                            }else if (f.getType().equals(boolean.class)){
+                                LoggerLog(prefix + "     fieldName:" + f.getName() + "     " + f.getBoolean(obj) + "      " + typeName);
+                            }else if (f.getType().equals(short.class)){
+                                LoggerLog(prefix + "     fieldName:" + f.getName() + "     " + f.getShort(obj) + "      " + typeName);
+                            }else if (f.getType().equals(double.class)){
+                                LoggerLog(prefix + "     fieldName:" + f.getName() + "     " + f.getDouble(obj) + "      " + typeName);
+                            }else if (f.getType().equals(float.class)){
+                                LoggerLog(prefix + "     fieldName:" + f.getName() + "     " + f.getFloat(obj) + "      " + typeName);
+                            }else if (f.getType().equals(char.class)){
+                                LoggerLog(prefix + "     fieldName:" + f.getName() + "     " + f.getChar(obj) + "      " + typeName);
+                            }else {
+                                LoggerLog(prefix + "     fieldName:" + f.getName() + "     " + f.get(obj) + "      " + typeName);
+                            }
+                        }
+                        if (fobj instanceof Map){
+                            LoggerLog(prefix + "map size:" + ((Map)fobj).size());
+                            for (Map.Entry<?,?> entry:((Map<?,?>)fobj).entrySet()){
+                                LoggerLog(prefix + "key: " + entry.getKey() + "      value:" + entry.getValue());
+                                if (!filter.contains(entry.getKey())){
+                                    filter.add(entry.getKey());
+                                    LoggerLog(prefix + "keyField:");
+                                    showObjectFields(entry.getKey(),prefix + "     ",filter);
+                                }
+                                if (!filter.contains(entry.getValue())){
+                                    filter.add(entry.getValue());
+                                    LoggerLog(prefix + "valueField:");
+                                    showObjectFields(entry.getValue(),prefix + "     ",filter);
+                                }
+                            }
+                        }
+                        else if (fobj instanceof Collection){
+                            LoggerLog(prefix + "collection size:" + ((Collection)fobj).size());
+                            for (Object o:(Collection)fobj){
+                                if (o==null){continue;}
+                                if (filter.contains(o)){continue;}
+                                filter.add(o);
+                                showObjectFields(o,prefix + "     ",filter);
+                            }
+                        }
+                    }catch (Exception e){
+                        LoggerLog(prefix + "     cannotAccess(" + f.getType().toString() + ")");
+                    }
+                }
+                superClass = superClass.getSuperclass();
+            }
+            if (superClass != null && superClass.isEnum()){
+                LoggerLog(prefix + "     enumFieldName:" + obj.getClass() + "     " + obj + "      " + typeName);
+            }else {
+                LoggerLog(prefix + "     fieldName:" + obj.getClass() + "     " + obj + "      " + typeName);
+            }
+
         }
+        else {
+            if (obj.getClass().isEnum()){
+                LoggerLog(prefix + "     enumFieldName:" + obj.getClass() + "     " + obj + "      " + typeName);
+            }else {
+                LoggerLog(prefix + "     fieldName:" + obj.getClass() + "     " + obj + "      " + typeName);
+            }
+        }
+
 //        LoggerLog(prefix + " ----fields end-----");
     }
 }
