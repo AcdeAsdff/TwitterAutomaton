@@ -17,8 +17,9 @@ import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 public class TwitterTweak implements IXposedHookLoadPackage {
-    public static final boolean showTextFlag = false;
-    public static final boolean showTagFlag = false;
+    public static final boolean showTextFlag = true;
+    public static final boolean showTagFlag = true;
+    public static final boolean showUserNameAndID = true;
     public static final boolean markDontLikeFlag = true;
     public static HashSet<String> newTags = new HashSet<>();
     public static Method[] keyMethods = new Method[2];
@@ -146,19 +147,20 @@ public class TwitterTweak implements IXposedHookLoadPackage {
                                     Field f_user = XposedHelpers.findFieldIfExists(userNameObj.getClass(),"r3");
                                     if (f_user != null){
                                         userNameObj = f_user.get(userNameObj);
+                                        Object userIDObj = userNameObj;
                                         if (userNameObj != null){
                                             f_user = XposedHelpers.findFieldIfExists(userNameObj.getClass(),"q");
                                             if (f_user != null){
                                                 userNameObj = f_user.get(userNameObj);
-                                                if (userNameObj != null && userNameObj instanceof String){
+                                                if (userNameObj instanceof String){
                                                     userName = (String) userNameObj;
                                                 }
                                             }
-                                            f_user = XposedHelpers.findFieldIfExists(userNameObj.getClass(),"d");
+                                            f_user = XposedHelpers.findFieldIfExists(userIDObj.getClass(),"d");
                                             if (f_user != null){
-                                                userNameObj = f_user.get(userNameObj);
-                                                if (userNameObj != null && userNameObj instanceof String){
-                                                    userID = (String) userNameObj;
+                                                userIDObj = f_user.get(userIDObj);
+                                                if (userIDObj instanceof String){
+                                                    userID = (String) userIDObj;
                                                 }
                                             }
                                         }
@@ -198,11 +200,28 @@ public class TwitterTweak implements IXposedHookLoadPackage {
                                             return;
                                         }
                                     }
-                                    if (!tweetText.isEmpty()){
+                                    if (showUserNameAndID && showTextFlag){
+                                        tweetText = "username:" + userName + "    userID:" + userID + "\n" + tweetText;
                                         if (!newTags.contains(tweetText)) {
                                             newTags.add(tweetText);
                                             if (showTextFlag){
                                                 LoggerLog(tweetText);
+                                            }
+                                        }
+                                    }else if (showUserNameAndID){
+                                        if (!tweetText.isEmpty()){
+                                            if (!newTags.contains(userName)) {
+                                                newTags.add(userName);
+                                                LoggerLog("username:" + userName + "    userID:" + userID);
+                                            }
+                                        }
+                                    }else {
+                                        if (!tweetText.isEmpty()){
+                                            if (!newTags.contains(tweetText)) {
+                                                newTags.add(tweetText);
+                                                if (showTextFlag){
+                                                    LoggerLog(tweetText);
+                                                }
                                             }
                                         }
                                     }
@@ -253,19 +272,20 @@ public class TwitterTweak implements IXposedHookLoadPackage {
                                  Field f_user = XposedHelpers.findFieldIfExists(userNameObj.getClass(),"r3");
                                  if (f_user != null){
                                      userNameObj = f_user.get(userNameObj);
+                                     Object userIDObj = userNameObj;
                                      if (userNameObj != null){
                                          f_user = XposedHelpers.findFieldIfExists(userNameObj.getClass(),"q");
                                          if (f_user != null){
                                              userNameObj = f_user.get(userNameObj);
-                                             if (userNameObj != null && userNameObj instanceof String){
+                                             if (userNameObj instanceof String){
                                                  userName = (String) userNameObj;
                                              }
                                          }
-                                         f_user = XposedHelpers.findFieldIfExists(userNameObj.getClass(),"d");
+                                         f_user = XposedHelpers.findFieldIfExists(userIDObj.getClass(),"d");
                                          if (f_user != null){
-                                             userNameObj = f_user.get(userNameObj);
-                                             if (userNameObj != null && userNameObj instanceof String){
-                                                 userID = (String) userNameObj;
+                                             userIDObj = f_user.get(userIDObj);
+                                             if (userIDObj instanceof String){
+                                                 userID = (String) userIDObj;
                                              }
                                          }
                                      }
@@ -349,13 +369,13 @@ public class TwitterTweak implements IXposedHookLoadPackage {
         }
         for (String toCheck:blackListNames){
             if (username.contains(toCheck)){
-                LoggerLog("matched:" + toCheck);
+                LoggerLog("matched Name::" + toCheck);
                 return true;
             }
         }
         for (String toCheck:blackListID){
             if (userID.contains(toCheck)){
-                LoggerLog("matched:" + toCheck);
+                LoggerLog("matched ID:" + toCheck);
                 return true;
             }
         }
