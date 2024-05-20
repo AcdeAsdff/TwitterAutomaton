@@ -1,13 +1,15 @@
 package com.linearity.twitterautomaton;
 
-import static com.linearity.twitterautomaton.utils.LoggerLog;
-import static com.linearity.twitterautomaton.utils.showObjectFields;
+import static com.linearity.utils.LoggerUtils.LoggerLog;
+import static com.linearity.utils.LoggerUtils.searchStringInObjectFields;
+import static com.linearity.utils.LoggerUtils.showObjectFields;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
@@ -16,43 +18,51 @@ import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
-public class TwitterTweak implements IXposedHookLoadPackage {
+public class TwitterTweak implements IXposedHookLoadPackage{
     public static final boolean showTextFlag = true;
     public static final boolean showTagFlag = true;
     public static final boolean showUserNameAndID = true;
     public static final boolean markDontLikeFlag = true;
     public static HashSet<String> newTags = new HashSet<>();
-    public static Method[] keyMethods = new Method[2];
-    public static Object[] objPool = new Object[1];
+    public static LinkedList<Object> objPool = new LinkedList<>();
 
     public static final String[] mustContainOne = new String[]{
-            "miku","hatsune","初音","ミク"
+            "miku","hatsune","初音","ミク","39",
     };
     /**
      * when tweetText.size >= mustContainLength
-     * and tweetText doesn't contain one word in mustContainOne,markDontLike
+     * and tweetText doesn't contain one word in mustContainOne,execute markDontLike
      * */
     public static final int mustContainLength = 200;
-    public static final String[] blackListWords = new String[]{
+    public static final String[] blackListStrings = new String[]{
             "虹夏", "ぼっち","apex","小春と湊","ドン・キホーテ","meiko","gumi","月雪ミヤコ",
-            "more more jump","歌い手","足立レイ","vtuber","abydos","UTAU","鏡音","琴葉","結月ゆかり",
-            "ウマ娘","ずんだもん"," ia ","喜多","御坂美琴"
+            "more more jump","歌い手","足立レイ","vtuber","abydos","utau","鏡音","琴葉","結月ゆかり",
+            "ウマ娘","ずんだもん"," ia ","喜多","御坂美琴","東雲絵名","原神","編み物","crochet","食品サンプル",
+            "foodsample","塩音ルト","重音テト"
+    };//remember to use lowercase
+    public static final String[] notStrictStrings = new String[]{
+            "誕生祭20","cat","百合"
+    };//when mustContainOne found none,use this
+    public static String[] blackListNames = new String[]{
+            "tuber",
     };
-    public static final String[] blackListNames = new String[0];
-    public static final String[] blackListID = new String[0];
+    public static String[] blackListID = new String[]{
+            "tuber"
+    };
 
-    public static HashSet<String> blackListTags;
+    public static HashSet<String> blackListTags;//once found,disable
+    public static HashSet<String> notStrictTags;//when mustContainOne found none,use this
     static {
         String[] blackListTagsArray = new String[]{
                 "鏡音", "巡音ルカ", "Gumi", "GUMI", "AI","重音テト", "Genshin", "MyGo", "vtuber",
-                "足立レイ", "ぼっち・ざ・ろっく", "クラにか", "鏡音リン", "ウマ娘", "ねんどり", "TGCF", "天官賜福",
+                 "ぼっち・ざ・ろっく", "クラにか", "鏡音リン", "ウマ娘", "ねんどり", "TGCF", "天官賜福",
                 "天官赐福", "ねんどろいど刀剣男士", "twstドール部", "アーニャ", "prsk",
                 "ねんどろいどどーる", "西住みほ", "MEIKO", "KAITO", "小さなラブライブ", "歌ってみた",
                 "DokiWaifuCupContest","DokiGallery","APEX","メズマライザー","純愛コンビ","小山芳姫", "八十八夜",
                 "このタグを見た人は黙って魔法使いをあげる","アニメ好きと繋がりたい","VRM_live_viewer","滲音かこい",
                 "愛奏さん","GWはフォロワーさんが増えるらしい","澁谷かのん","小春と湊","ドン・キホーテ",
                 "4月を写真4枚で振り返る","水銀燈","suigintou","mercurylampe","銀様","doll","ドール","ぷにコレ",
-                "メガハウス","MegaHouse","鈍川まなみ","深夜のねんどろ撮影６０分一本勝負","千歌Qi","音街ウナ",
+                "メガハウス","MegaHouse","鈍川まなみ","千歌Qi","音街ウナ",
                 "南知多まゆの","松新","ブルアカ","BlueArchive","月雪ミヤコ","ビックシムたん",
                 "企業公式が毎朝地元の天気を言い合う","愛知","名古屋","イマソラ","秋葉原","akiba","いまそら",
                 "艦これ版深夜の真剣MMD60分一本勝負","ふつうのJK", "ゆるキャン","ガシャポン",
@@ -64,7 +74,7 @@ public class TwitterTweak implements IXposedHookLoadPackage {
                 "水上バス","敦賀酒造","あおぞら鉄道","セタわんこ","中野四葉","五等分の花嫁","川崎たん","はるなへ",
                 "お浄るりりん","能勢町","土肥金山","御泉印","八百康カフェ","玉造彗","おはポス","おはよう","ナイセン",
                 "自転車ヘルメットの日","自転車月間","夏色花梨","小樽潮風高校","おはドル","アキバたん","鳴花ヒメ",
-                "エヴァンゲリオン","ちいかわ","AIイラスト","AIgirl","AIart","足立レイ投稿祭2024","prsk_FA",
+                "エヴァンゲリオン","ちいかわ","AIイラスト","AIgirl","AIart","prsk_FA",
                 "境界戦機プラモデルがお買い得","kk_senki","極鋼ノ装鬼","ビッカメ名古屋","おやつ","チーズ",
                 "カスタムキャスト","おはようVツイッタラー","GWなので金髪を愛でます","初リプ・初絡み・時差リプ大歓迎",
                 "チーズ小説","5月も仲良くしてくれる人リプ","東京都心はパラレルワールド","ハッターズFA","蒼囲空",
@@ -100,9 +110,34 @@ public class TwitterTweak implements IXposedHookLoadPackage {
                 "神鉄","ラク子の紹介","神戸市","兵庫県","摂津国","通勤ラク子","幻想夢乙女","cospaly",
                 "らいコス写真","コスプレ","平湯温泉","高山匠美","奥飛騨温泉郷","飛騨高山",
                 "温泉閣","カナエちゃん","カナ絵アート","鹿屋園芸部","nijijourney","東方project","霧雨魔理沙",
-                "鬼滅の刃","竈門禰󠄀豆子",
+                "鬼滅の刃","竈門禰󠄀豆子","アクアシューターズ","うさりこちゃんをすこれ",
+                "東雲絵名","足立レイ","東方Project","ずんちゃんモチモチ木曜日","東北ずん子","VRMLiveViewer",
+                "水橋パルスィ","ikamusume","イカ娘","teibo","放課後ていぼう日誌","Luchina_sisters",
+                "ahsoft","フリモメン","人マニア","いいからパンツ見せろ","MyXAnniversary","とみーのどぼん",
+                "アゾカツ","アイコレプチ","のんびり生きるネコ","ジョギング","緑茶の日","asterian_synthv",
+                "鶴居村","鶴居いづる","くろりょこう","かちまちチャレンジ","晴ちゃん誕生日おめでとう",
+                "NIKKEcosplay","ニコニコ超会議2024","ニコニコ超会議コスプレ","ニコニコ超会議","埼玉県",
+                "久喜市","新聞配達","柴犬","道志渓谷","野原の吊り橋","新緑",
+                "繋がらなくていいから俺のフランドール・スカーレットを見てくれ","あん娘","MDDはいいぞ",
+                "東雲絵名生誕祭2024","VALORANT","御茶ノ愛","めっとこ","とちてれアニメフェスタ",
+                "ゼルダの伝説","劇場版すとぷりはじまりの物語で1番好きなシーン","とべ動物園","ジャガー","下諏訪町",
+                "farcille","dungeonmeshi","アークナイツ","明日方舟","Arknights","twstプラス","twst夢",
+                "helltaker","IA","塩音ルト","ユアマジェ","Bocchi","デザフェス59", "ワンコインランウェイ",
+
         };
         blackListTags = new HashSet<>(Arrays.asList(blackListTagsArray));
+
+        String[] notStrictTagsArr = new String[]{
+                "深夜のねんどろ撮影６０分一本勝負","絵描きさんと繋がりたい","絵柄が好きっていう人にフォローされたい",
+                "DTM無料","深夜のねんどろ撮影60分一本勝負","ねんどろいど","みくさんぽ","figmaster","なまらってぃ",
+                "悪ノ強化月間","悪ノ創作","妖怪大行進","ニコニコ動画","ぬいぐるみの時間","ふわぷち",
+                "このタグを見た人は黙って武器を持ったキャラを貼る","goodsmile","ねんどろいど","性癖パネルトラップ",
+                "ホココス2024","敦賀市立博物館","XRAnimator","愛三電機","vocaloid","ISKAgallery",
+                "おひBUNNY","EmoismGathering","에모게더","電音部","ESP_Japan","DTM",
+                "DTMerさんと繋がりたい","GarageBand",
+
+        };
+        notStrictTags = new HashSet<>(Arrays.asList(notStrictTagsArr));
     }
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) {
@@ -114,11 +149,21 @@ public class TwitterTweak implements IXposedHookLoadPackage {
                 Class<?> FindingClass;
 
                 Class<?> CurationViewDelegateBinder_Class = XposedHelpers.findClassIfExists("com.twitter.tweetview.core.ui.curation.CurationViewDelegateBinder",lpparam.classLoader);
-                FindingClass = XposedHelpers.findClassIfExists("pae$a",lpparam.classLoader);//ad blocker
+                FindingClass = XposedHelpers.findClassIfExists("pae$a",lpparam.classLoader);//blocker
                 if (FindingClass != null){
+
+//                    Constructor<?> UserIdentifierConstructor = XposedHelpers.findConstructorExact("UserIdentifier",lpparam.classLoader,long.class);
+//                    Object userIdentifier = UserIdentifierConstructor.newInstance(114514L);
+
+                    Class<?> h19Cls = XposedHelpers.findClass("h19$a",lpparam.classLoader);
+                    Constructor<?> h19Constructor = XposedHelpers.findConstructorExact(h19Cls);
+//                    Class<?> UserIdentifierClass = XposedHelpers.findClass("com.twitter.util.user.UserIdentifier",lpparam.classLoader);
+                    Class<?> vjsClass = XposedHelpers.findClass("vjs",lpparam.classLoader);
+//                    Constructor<?> hksConstructor = XposedHelpers.findConstructorExact("hks",lpparam.classLoader,Context.class,UserIdentifierClass,vjsClass,boolean.class,h19Cls,int.class,boolean.class);
                     XposedBridge.hookAllMethods(FindingClass, "a", new XC_MethodHook() {
                         @Override
                         protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+//                            LoggerLog(new Exception("not an exception"));
                             super.beforeHookedMethod(param);
                             Object obj = param.args[2];
                             Field f = XposedHelpers.findFieldIfExists(obj.getClass(),"k");
@@ -133,6 +178,11 @@ public class TwitterTweak implements IXposedHookLoadPackage {
                                 LoggerLog("ad cancelled");
                                 return;
                             }
+//                            showArgs(param.args);
+
+//                            for (Object arg:param.args){
+//                                searchStringInObjectFields(arg,"    ","whs");
+//                            }
                             {
                                 String userName = "";
                                 String userID = "";
@@ -193,12 +243,18 @@ public class TwitterTweak implements IXposedHookLoadPackage {
                                             }
                                         }
                                     }
-                                    if (objPool[0] != null){
-                                        if (checkDontLike(blackListTags, tagList, blackListWords, blackListNames, blackListID, userName, userID, tweetText,mustContainOne,mustContainLength)) {
-                                            Object yva$c_obj = XposedHelpers.callStaticMethod(CurationViewDelegateBinder_Class,"d",param.args[2]);
-                                            markDontLikeMethods.bpt_j(yva$c_obj, vjsobj, lpparam.classLoader);
-                                            return;
-                                        }
+//                                    Context currentAppContext = AndroidAppHelper.currentApplication();
+                                    if (checkDontLike(blackListTags, tagList, blackListStrings,
+                                            blackListNames, blackListID,
+                                            userName, userID, tweetText,
+                                            mustContainOne,mustContainLength,
+                                            notStrictStrings,notStrictTags)) {
+//                                        Object yva$c_obj = XposedHelpers.callStaticMethod(CurationViewDelegateBinder_Class,"d",vjsobj);
+                                        List<?> yva$c_list = (List<?>) XposedHelpers.getObjectField(XposedHelpers.callMethod(vjsobj,"c"),"s");
+//                                        showObjectFields(yva$c_list,"    ");
+                                        if (yva$c_list.isEmpty()){return;}
+                                        markDontLikeMethods.bpt_j(yva$c_list.get(0), vjsobj, h19Constructor);
+                                        return;
                                     }
                                     if (showUserNameAndID && showTextFlag){
                                         tweetText = "username:" + userName + "    userID:" + userID + "\n" + tweetText;
@@ -246,98 +302,20 @@ public class TwitterTweak implements IXposedHookLoadPackage {
                         }
                     });
                 }
-                 FindingClass = XposedHelpers.findClassIfExists("fot",lpparam.classLoader);
-                 if (FindingClass != null){
-                     XposedBridge.hookAllConstructors(FindingClass, new XC_MethodHook() {
-                         @Override
-                         protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                             super.afterHookedMethod(param);
-                             if (param.args.length == 20){
 
-                                 String userName = "";
-                                 String userID = "";
-//                                 LoggerLog(new Exception("not an exception"));
-                                 Field f;
-                                 Object obj1;
-                                 Object txtObj = param.args[4];
-                                 Object obj = param.args[0];
-                                 Object vx6obj = param.args[0];
-                                 Object vjsobj = param.args[6];
-                                 {
-                                String tweetText = "";
-                                ArrayList<String> tagList = new ArrayList<>();
-                                f = XposedHelpers.findFieldIfExists(obj.getClass(),"c");
-                                obj = f.get(obj);if (obj == null){return;}
-                                 Object userNameObj = obj;
-                                 Field f_user = XposedHelpers.findFieldIfExists(userNameObj.getClass(),"r3");
-                                 if (f_user != null){
-                                     userNameObj = f_user.get(userNameObj);
-                                     Object userIDObj = userNameObj;
-                                     if (userNameObj != null){
-                                         f_user = XposedHelpers.findFieldIfExists(userNameObj.getClass(),"q");
-                                         if (f_user != null){
-                                             userNameObj = f_user.get(userNameObj);
-                                             if (userNameObj instanceof String){
-                                                 userName = (String) userNameObj;
-                                             }
-                                         }
-                                         f_user = XposedHelpers.findFieldIfExists(userIDObj.getClass(),"d");
-                                         if (f_user != null){
-                                             userIDObj = f_user.get(userIDObj);
-                                             if (userIDObj instanceof String){
-                                                 userID = (String) userIDObj;
-                                             }
-                                         }
-                                     }
-                                 }
+                FindingClass = XposedHelpers.findClassIfExists("whs",lpparam.classLoader);
+                if (FindingClass != null){
+                    XposedBridge.hookAllConstructors(FindingClass, new XC_MethodHook() {
+                        @Override
+                        protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                            super.afterHookedMethod(param);
+//                            showObjectFields(param.args[3],"    ");
+                            objPool.add(param.thisObject);
+//                            LoggerLog(param.args[0].getClass());
+                        }
+                    });
+                }
 
-                                Field f1 = XposedHelpers.findFieldIfExists(obj.getClass(),"X2");
-                                obj1 = f1.get(obj);
-                                if (obj1 != null){
-                                    f1 = XposedHelpers.findFieldIfExists(obj1.getClass().getSuperclass(),"c");
-                                    tweetText = (String) f1.get(obj1);
-                                }
-                                f = XposedHelpers.findFieldIfExists(obj.getClass(),"W2");
-                                obj = f.get(obj);if (obj == null){return;}
-                                f = XposedHelpers.findFieldIfExists(obj.getClass(),"X");
-                                obj = f.get(obj);if (obj == null){return;}
-                                f = XposedHelpers.findFieldIfExists(obj.getClass(),"c");
-                                obj = f.get(obj);if (obj == null){return;}
-                                f = XposedHelpers.findFieldIfExists(obj.getClass(),"c");
-                                obj = f.get(obj);if (!(obj instanceof List)){return;}
-                                List<?> tagEntities = (List<?>) obj;
-                                for (Object o:tagEntities){
-                                    Field field = XposedHelpers.findFieldIfExists(o.getClass(),"y");
-                                    if (field != null && field.getType().isInstance("")){
-                                        String tag = (String) field.get(o);
-                                        if (tag != null && !tag.isEmpty()){
-                                            tagList.add(tag);
-                                        }
-                                    }
-                                }
-                                if (checkDontLike(blackListTags,tagList,blackListWords,blackListNames,blackListID,userName,userID,tweetText,mustContainOne,mustContainLength)){
-                                    if (objPool[0] == null){
-                                        Object lObj = XposedHelpers.findField(txtObj.getClass(),"l").get(txtObj);
-                                        objPool[0] = lObj;
-                                    }
-                                    if (keyMethods[0] == null){
-                                        for (Method m:txtObj.getClass().getDeclaredMethods()){
-                                            if (m.getName().equals("j")){
-                                                keyMethods[0] = m;
-                                                Object yva$c_obj = XposedHelpers.callStaticMethod(CurationViewDelegateBinder_Class,"d",vjsobj);
-                                                m.invoke(txtObj,vx6obj,yva$c_obj,vjsobj);
-                                            }
-                                        }
-                                    }else {
-                                        Object yva$c_obj = XposedHelpers.callStaticMethod(CurationViewDelegateBinder_Class,"d",vjsobj);
-                                        keyMethods[0].invoke(txtObj,vx6obj,yva$c_obj,vjsobj);
-                                    }
-                                }
-                            }
-                             }
-                         }
-                     });
-                 }
 
 
             }catch (Exception e){
@@ -346,14 +324,42 @@ public class TwitterTweak implements IXposedHookLoadPackage {
         }
     }
 
+    //true:Don't like
     public static boolean checkDontLike(
             HashSet<String> blackListTags,List<String> tags,String[] blackListWords,
             String[] blackListNames,String[] blackListID,String username,
-            String userID,String tweetText, String[] mustContainOne,int mustContainLength){
+            String userID,String tweetText, String[] mustContainOne,int mustContainLength,String[] notStrictStrings,HashSet<String> notStrictTags){
         if (!markDontLikeFlag){return false;}
+        String checking = tweetText + userID + username;
+        boolean mustContainFlag = false;
+        for (String toCheck:mustContainOne){
+            if (checking.toLowerCase().contains(toCheck)){
+                mustContainFlag = true;
+                break;
+            }
+        }
+        if (!mustContainFlag){
+            if (tweetText.length() >= mustContainLength
+                    || !tweetText.contains("/")
+                //AcdeAsdff cannot read japanese:
+                // all "pure text"(without a link) without miku will be ignored
+            ){
+                return true;
+            }
+            for (String tag:tags){
+                if (notStrictTags.contains(tag)){
+                    return true;
+                }
+            }
+            for (String s:notStrictStrings){
+                if (checking.contains(s)){return true;}
+            }
+        }
+
 //        {
 //            //warning:strict mode!
 //            //you may get banned for this!!!!!!(not proofed)
+//            tweetText += username += userID;
 //            for (String toCheck:mustContainOne){
 //            if (tweetText.toLowerCase().contains(toCheck)){
 //                return false;
@@ -367,12 +373,14 @@ public class TwitterTweak implements IXposedHookLoadPackage {
                 return true;
             }
         }
+        username = username.toLowerCase();
         for (String toCheck:blackListNames){
             if (username.contains(toCheck)){
-                LoggerLog("matched Name::" + toCheck);
+                LoggerLog("matched Name:" + toCheck);
                 return true;
             }
         }
+        userID = userID.toLowerCase();
         for (String toCheck:blackListID){
             if (userID.contains(toCheck)){
                 LoggerLog("matched ID:" + toCheck);
@@ -384,18 +392,6 @@ public class TwitterTweak implements IXposedHookLoadPackage {
                 LoggerLog("matched tag:" + tag);
                 return true;
             }
-        }
-        if (tweetText.length() >= mustContainLength
-                || !tweetText.contains("/")
-            //AcdeAsdff cannot read japanese:
-            // all "pure text"(without a link) without miku will be ignored
-        ){
-            for (String toCheck:mustContainOne){
-                if (tweetText.toLowerCase().contains(toCheck)){
-                    return false;
-                }
-            }
-            return true;
         }
         return false;
     }

@@ -1,11 +1,14 @@
 package com.linearity.twitterautomaton;
 
+import static com.linearity.twitterautomaton.TwitterTweak.objPool;
+
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 
 import de.robv.android.xposed.XposedHelpers;
 
 public class markDontLikeMethods {
-    public static final void bpt_j(Object cVar, Object vjsVar, ClassLoader classLoader) throws InvocationTargetException, IllegalAccessException, InstantiationException {
+    public static final void bpt_j(Object cVar, Object vjsVar, Constructor<?> h19Constructor) throws InvocationTargetException, IllegalAccessException, InstantiationException {
         boolean z = false;
         int i = 1;
         Object hInside = XposedHelpers.findMethodExact(vjsVar.getClass().getSuperclass(),"c").invoke(vjsVar);
@@ -22,16 +25,18 @@ public class markDontLikeMethods {
 //            s(this.h.get(), vx6Var);
 //            return true;
 //        }
-        Class<?> h19Cls = XposedHelpers.findClass("h19$a",classLoader);
-        Object aVar = XposedHelpers.findConstructorExact(h19Cls).newInstance();
+        Object aVar = h19Constructor.newInstance();
         XposedHelpers.setIntField(aVar,"c",4);
         XposedHelpers.setIntField(aVar,"c",4);
-        XposedHelpers.setLongField(aVar,"d",XposedHelpers.getLongField(cVar,"c"));
+        long cVar_c = XposedHelpers.getLongField(cVar,"c");
+        XposedHelpers.setLongField(aVar,"d",cVar_c);
         Object o = XposedHelpers.findMethodExact(aVar.getClass().getSuperclass(),"o").invoke(aVar);
         if (z) {
             i = 2;
         }
-        bpt_r(vjsVar, o, i, TwitterTweak.objPool[0]);
+        for (Object disabler:objPool){
+            bpt_r(vjsVar, o, i, disabler);
+        }
     }
 
     public static boolean e58_t(int i) {

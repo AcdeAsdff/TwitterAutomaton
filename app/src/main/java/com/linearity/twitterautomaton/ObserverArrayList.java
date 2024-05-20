@@ -1,8 +1,7 @@
 package com.linearity.twitterautomaton;
 
-import static com.linearity.twitterautomaton.utils.LoggerLog;
-import static com.linearity.twitterautomaton.utils.showArgs;
-import static com.linearity.twitterautomaton.utils.showObjectFields;
+
+import static com.linearity.utils.LoggerUtils.*;
 
 import java.util.ArrayList;
 import java.util.Collection;
